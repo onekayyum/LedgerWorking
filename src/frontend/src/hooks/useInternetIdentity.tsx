@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { API_BASE } from "../apiConfig";
+import { buildApiUrl } from "../apiConfig";
 import {
   AUTH_EVENT,
   clearAuthSession,
@@ -88,7 +88,7 @@ export function AuthProvider({
       setLoginStatus("loading");
       setLoginError(undefined);
       try {
-        const response = await fetch(`${API_BASE}${path}`, {
+        const response = await fetch(buildApiUrl(path), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username: username.trim(), password }),

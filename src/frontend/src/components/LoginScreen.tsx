@@ -2,15 +2,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  getApiBase,
+  getRuntimeApiBase,
+  setRuntimeApiBase,
+} from "../apiConfig";
 import { useAuth } from "../hooks/useInternetIdentity";
 import { useI18n } from "../i18n";
+import { isNativePlatform } from "../utils/platform";
 
 export function LoginScreen() {
   const { t } = useI18n();
-  const { login, signup, isLoggingIn } = useAuth();
+  const { login, signup, isLoggingIn, loginError } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"login" | "signup">("login");
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [apiBaseInput, setApiBaseInput] = useState(
+    getRuntimeApiBase() || getApiBase(),
+  );
 
   const handleSubmit = async () => {
     if (!username.trim() || !password) {
@@ -26,8 +36,18 @@ export function LoginScreen() {
     if (ok) {
       toast.success(mode === "login" ? "Logged in" : "Account created");
     } else {
-      toast.error("Authentication failed");
+      toast.error(loginError?.message || "Authentication failed");
     }
+  };
+
+  const saveApiBase = () => {
+    const normalized = setRuntimeApiBase(apiBaseInput);
+    if (normalized) {
+      setApiBaseInput(normalized);
+      toast.success("Server URL saved");
+      return;
+    }
+    toast.error("Please enter a valid API base URL");
   };
 
   return (
@@ -76,6 +96,29 @@ export function LoginScreen() {
             ? "Need an account? Sign up"
             : "Have an account? Login"}
         </Button>
+        {isNativePlatform() && (
+          <div className="pt-1 border-t border-border space-y-2">
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => setShowServerConfig((v) => !v)}
+            >
+              {showServerConfig ? "Hide server settings" : "Configure server URL"}
+            </Button>
+            {showServerConfig && (
+              <>
+                <Input
+                  value={apiBaseInput}
+                  onChange={(e) => setApiBaseInput(e.target.value)}
+                  placeholder="https://your-backend.example.com"
+                />
+                <Button className="w-full" onClick={saveApiBase}>
+                  Save Server URL
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

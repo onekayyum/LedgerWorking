@@ -11,25 +11,62 @@ import { isNativePlatform } from "./utils/platform";
  * For mobile (Capacitor) builds the env var MUST be set to an absolute URL
  * because the WebView has no "same origin" server.
  */
-function resolveApiBase(): string {
-  const fromEnv =
-    import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_BASE_URL || "";
+const API_BASE_STORAGE_KEY = "ledger_api_base_url";
 
-  if (!fromEnv && isNativePlatform()) {
-    console.warn(
-      "[API] VITE_API_URL is not set. Mobile builds require an absolute URL.",
-      "API calls will fail until VITE_API_URL is configured in .env",
-    );
+function normalizeBase(input: string): string {
+  return String(input || "").trim().replace(/\/+$/, "");
+}
+
+function getStoredRuntimeBase(): string {
+  try {
+    const stored = localStorage.getItem(API_BASE_STORAGE_KEY) || "";
+    return normalizeBase(stored);
+  } catch {
+    return "";
   }
+}
 
-  // Remove trailing slash for consistent URL joining
-  const base = fromEnv.replace(/\/+$/, "");
+function getEnvBase(): string {
+  return normalizeBase(
+    import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_BASE_URL || "",
+  );
+}
 
-  if (base) {
-    console.log("[API] Using API base:", base);
+export function getApiBase(): string {
+  const runtimeBase = getStoredRuntimeBase();
+  const envBase = getEnvBase();
+  const base = runtimeBase || envBase;
+
+  if (!base && isNativePlatform()) {
+    console.warn(
+      "[API] No API base configured. Set VITE_API_URL at build time",
+      "or set a runtime API URL from the login screen.",
+    );
   }
 
   return base;
 }
 
-export const API_BASE: string = resolveApiBase();
+export function getRuntimeApiBase(): string {
+  return getStoredRuntimeBase();
+}
+
+export function setRuntimeApiBase(value: string): string {
+  const normalized = normalizeBase(value);
+  try {
+    if (normalized) {
+      localStorage.setItem(API_BASE_STORAGE_KEY, normalized);
+    } else {
+      localStorage.removeItem(API_BASE_STORAGE_KEY);
+    }
+  } catch {
+    // ignore storage failures
+  }
+  return normalized;
+}
+
+export function buildApiUrl(path: string): string {
+  const base = getApiBase();
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${normalizedPath}`;
+}
